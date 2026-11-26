@@ -1,0 +1,56 @@
+cff-version: 1.2.0
+title: Inventaria Knowledge Graph
+message: "If you use this knowledge graph, please cite it using the metadata from this file."
+type: dataset
+authors:
+  - given-names: Christina
+    family-names: Antenhofer
+    affiliation: University of Salzburg
+    orcid: "https://orcid.org/0000-0002-2653-4508"
+  - given-names: Elisabeth
+    family-names: Gruber-Tokić
+    affiliation: University of Innsbruck
+    orcid: "https://orcid.org/0000-0003-3387-3097"
+  - given-names: Gerald
+    family-names: Hiebel
+    affiliation: University of Innsbruck
+    orcid: "https://orcid.org/0000-0002-3799-8391"
+  - given-names: Ingrid
+    family-names: Matschinegg
+    affiliation: University of Salzburg
+    orcid: "https://orcid.org/0000-0001-7922-4338"
+  - given-names: Milena
+    family-names: Peralta Friedburg
+    affiliation: University of Innsbruck
+    orcid: "https://orcid.org/0000-0002-9367-4623"
+  - given-names: Claudia
+    family-names: Posch
+    affiliation: University of Innsbruck
+    orcid: "https://orcid.org/0000-0002-3939-8306"
+  - given-names: Gerhard
+    family-names: Rampl
+    affiliation: University of Innsbruck
+    orcid: "https://orcid.org/0000-0001-9333-922X"
+abstract: >-
+  CIDOC CRM knowledge graph of historical inventories of Tyrolean castles and
+  residences (14th–17th century). It models the inventory documents, their
+  creation and modification, the persons involved and their roles, the castles
+  and their rooms, the recorded objects with their annotated text segments,
+  and castle ownership. Provided in two equivalent serialisations: TriG-star
+  (RDF-star) and N-Quads with property classes (CIDOC CRM v7.1.3 PC module).
+keywords:
+  - CIDOC CRM
+  - knowledge graph
+  - linked open data
+  - RDF-star
+  - castle inventories
+  - Tyrol
+  - material culture
+  - digital humanities
+license: CC-BY-4.0
+repository-code: "https://github.com/uibk-inventaria/KnowledgeGraph"
+url: "https://www.inventaria.at/"
+# Nach dem ersten Zenodo-Release die Concept-DOI eintragen und die Kommentarzeichen entfernen:
+# doi: 10.5281/zenodo.XXXXXXX
+# version: 0.1.0
+# date-released: "2026-12-01"

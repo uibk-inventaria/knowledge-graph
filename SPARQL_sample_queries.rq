@@ -1,0 +1,137 @@
+# Inventorying a castle as an event – SPARQL queries for the Inventaria Knowledge Graph
+# Run each query separately (in GraphDB: one tab per query). Select the castle by its label
+# (replace "Schloss Fragenstein"@de);
+# select a single inventorying event by putting its URI (from query 1) into VALUES.
+# The queries assume that the default graph is the union of all named graphs (GraphDB default).
+
+PREFIX crm:    <http://www.cidoc-crm.org/cidoc-crm/>
+PREFIX crmsci: <http://www.cidoc-crm.org/extensions/crmsci/>
+PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
+PREFIX xsd:    <http://www.w3.org/2001/XMLSchema#>
+
+# 1. Chronicle: all inventorying events of a castle in chronological order
+SELECT (SAMPLE(?cn) AS ?castle_name) ?inventorying (MAX(STR(?d)) AS ?date) ?title ?occasion ?occasion_note ?document
+       ?rooms ?objects ?previous ?next
+WHERE {
+  ?castle rdfs:label "Schloss Fragenstein"@de .                 # castle to look at
+  ?inventorying a crm:E65_Creation ;
+                    crm:P7_took_place_at ?castle ;
+                    crm:P94_has_created ?document .           # the inventory document
+  OPTIONAL { ?castle rdfs:label ?cn FILTER(lang(?cn) = "de") }  # castle label for the result
+  OPTIONAL { ?inventorying rdfs:label ?title FILTER(lang(?title) = "de") }
+  # date: the most precise value of all time-spans (full date before year)
+  OPTIONAL { ?inventorying crm:P4_has_time-span/crm:P82_at_some_time_within ?d }
+  # occasion of the inventorying, e.g. change of administrator
+  OPTIONAL { ?inventorying crm:P17_was_motivated_by ?a .
+             ?a rdfs:label ?occasion FILTER(lang(?occasion) = "de")
+             OPTIONAL { ?a crm:P3_has_note ?occasion_note } }
+  # number of rooms (sub-events per room) and of objects observed there
+  OPTIONAL { SELECT ?inventorying (COUNT(DISTINCT ?room) AS ?rooms) (COUNT(DISTINCT ?object) AS ?objects)
+             WHERE { ?inventorying crm:P9_consists_of ?part .
+                     ?part crm:P7_took_place_at ?room .
+                     OPTIONAL { ?part crmsci:O8_observed ?object } }
+             GROUP BY ?inventorying }
+  # previous and next inventorying event in the series
+  OPTIONAL { ?previous crm:P134i_was_continued_by ?inventorying . ?previous a crm:E65_Creation }
+  OPTIONAL { ?inventorying crm:P134i_was_continued_by ?next . ?next a crm:E65_Creation }
+}
+GROUP BY ?inventorying ?title ?occasion ?occasion_note ?document ?rooms ?objects ?previous ?next
+ORDER BY ?date
+
+
+PREFIX crm:    <http://www.cidoc-crm.org/cidoc-crm/>
+PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
+
+# 2. Who took part? Persons and their roles per inventorying event (RDF-star version)
+SELECT (SAMPLE(?cn) AS ?castle_name) (MAX(STR(?d)) AS ?date) ?inventorying ?person ?name ?role
+WHERE {
+  ?castle rdfs:label "Schloss Fragenstein"@de .                 # castle to look at
+  ?inventorying a crm:E65_Creation ; crm:P7_took_place_at ?castle .
+  OPTIONAL { ?castle rdfs:label ?cn FILTER(lang(?cn) = "de") }  # castle label for the result
+  OPTIONAL { ?inventorying crm:P4_has_time-span/crm:P82_at_some_time_within ?d }
+  # role as a statement about the statement "event carried out by person"
+  << ?inventorying crm:P14_carried_out_by ?person >> crm:P14.1_in_the_role_of ?r .
+  OPTIONAL { ?person rdfs:label ?name }
+  OPTIONAL { ?r skos:prefLabel ?role FILTER(lang(?role) = "de") }
+}
+GROUP BY ?inventorying ?person ?name ?role
+ORDER BY ?date ?role ?name
+
+
+PREFIX crm:    <http://www.cidoc-crm.org/cidoc-crm/>
+PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
+
+# 2b. The same query for the N-Quads version with property classes (PC14)
+SELECT (SAMPLE(?cn) AS ?castle_name) (MAX(STR(?d)) AS ?date) ?inventorying ?person ?name ?role
+WHERE {
+  ?castle rdfs:label "Schloss Fragenstein"@de .                 # castle to look at
+  ?inventorying a crm:E65_Creation ; crm:P7_took_place_at ?castle .
+  OPTIONAL { ?castle rdfs:label ?cn FILTER(lang(?cn) = "de") }  # castle label for the result
+  OPTIONAL { ?inventorying crm:P4_has_time-span/crm:P82_at_some_time_within ?d }
+  # role via an instance of the property class PC14 carried out by
+  ?pc a crm:PC14_carried_out_by ;
+      crm:P01_has_domain ?inventorying ;
+      crm:P02_has_range ?person ;
+      crm:P14.1_in_the_role_of ?r .
+  OPTIONAL { ?person rdfs:label ?name }
+  OPTIONAL { ?r skos:prefLabel ?role FILTER(lang(?role) = "de") }
+}
+GROUP BY ?inventorying ?person ?name ?role
+ORDER BY ?date ?role ?name
+
+
+PREFIX crm:    <http://www.cidoc-crm.org/cidoc-crm/>
+PREFIX crmsci: <http://www.cidoc-crm.org/extensions/crmsci/>
+PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd:    <http://www.w3.org/2001/XMLSchema#>
+
+# 3. The route through the castle: rooms of one inventorying event and the moves from room to room
+SELECT (SAMPLE(?cn) AS ?castle_name) (MIN(?pos) AS ?page) ?room (SAMPLE(?rlabel) AS ?room_name) ?is_start
+       (SAMPLE(?nlabel) AS ?next_room) (COUNT(DISTINCT ?object) AS ?objects)
+WHERE {
+  # inventorying event to look at (URI from query 1)
+  VALUES ?inventorying { <https://w3id.org/uibk/inventaria/E65_creation_actE3_Intention_to_Apply/creation_tla_inventare_a_125_1> }
+  OPTIONAL { ?inventorying crm:P7_took_place_at/rdfs:label ?cn FILTER(lang(?cn) = "de") }
+  ?inventorying crm:P9_consists_of ?part .
+  ?part crm:P7_took_place_at ?room .
+  OPTIONAL { ?room rdfs:label ?rlabel FILTER(!STRSTARTS(?rlabel, "in ")) }   # skip labels like "in der Küche"
+  # objects in the room and the page of the inventory on which they are listed
+  OPTIONAL { ?part crmsci:O8_observed ?object .
+             ?object crm:P70i_is_documented_in ?segment .
+             FILTER(CONTAINS(STR(?segment), "TX7_text_segment/page"))
+             BIND(xsd:integer(STRBEFORE(STRAFTER(STR(?segment), "TX7_text_segment/page"), "_")) AS ?pos) }
+  # move to the next room (E9 Move)
+  OPTIONAL { ?inventorying crm:P9_consists_of ?move .
+             ?move crm:P27_moved_from ?room ; crm:P26_moved_to ?next_room_iri .
+             OPTIONAL { ?next_room_iri rdfs:label ?nlabel FILTER(!STRSTARTS(?nlabel, "in ")) } }
+  # start of the route: no move leads into this room
+  BIND(NOT EXISTS { ?inventorying crm:P9_consists_of ?g2 . ?g2 crm:P26_moved_to ?room } AS ?is_start)
+}
+GROUP BY ?room ?is_start
+ORDER BY DESC(?is_start) ?page
+
+
+PREFIX crm:    <http://www.cidoc-crm.org/cidoc-crm/>
+PREFIX crmsci: <http://www.cidoc-crm.org/extensions/crmsci/>
+PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
+
+# 4. What was recorded where? Objects per room with type, quantity and original text
+SELECT (SAMPLE(?cn) AS ?castle_name) (SAMPLE(?rlabel) AS ?room) ?object (SAMPLE(?tlabel) AS ?type) ?quantity ?text
+WHERE {
+  # inventorying event to look at (URI from query 1)
+  VALUES ?inventorying { <https://w3id.org/uibk/inventaria/E65_creation_actE3_Intention_to_Apply/creation_tla_inventare_a_125_1> }
+  OPTIONAL { ?inventorying crm:P7_took_place_at/rdfs:label ?cn FILTER(lang(?cn) = "de") }
+  ?inventorying crm:P9_consists_of ?part .
+  ?part crm:P7_took_place_at ?r ; crmsci:O8_observed ?object .
+  OPTIONAL { ?r rdfs:label ?rlabel FILTER(!STRSTARTS(?rlabel, "in ")) }
+  # object type from the Inventaria Thesaurus
+  OPTIONAL { ?object crm:P2_has_type ?t . ?t skos:prefLabel ?tlabel FILTER(lang(?tlabel) = "de") }
+  OPTIONAL { ?object crm:P90_has_value ?quantity }      # quantity
+  OPTIONAL { ?object crm:P3_has_note ?text }          # original text of the entry
+}
+GROUP BY ?r ?object ?quantity ?text
+ORDER BY ?room
